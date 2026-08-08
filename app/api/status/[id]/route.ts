@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+// Route handler GET di-cache oleh Next.js secara default -> paksa selalu fresh
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 export async function GET(
   req: NextRequest,
@@ -17,18 +21,22 @@ export async function GET(
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
   });
   const data = await res.json();
 
   if (!res.ok) {
     return NextResponse.json(
       { error: data?.error?.message || `Gagal cek status (HTTP ${res.status})`, detail: data },
-      { status: res.status }
+      { status: res.status, headers: { "Cache-Control": "no-store" } }
     );
   }
 
-  return NextResponse.json({
-    readyState: data.readyState,
-    url: `https://${data.url}`,
-  });
+  return NextResponse.json(
+    {
+      readyState: data.readyState,
+      url: `https://${data.url}`,
+    },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }

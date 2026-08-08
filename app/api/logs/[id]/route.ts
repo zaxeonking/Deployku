@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const revalidate = 0;
 
 export async function GET(
   req: NextRequest,
@@ -18,6 +21,7 @@ export async function GET(
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
   });
 
   if (!res.ok) {
@@ -46,5 +50,5 @@ export async function GET(
     }
   }
 
-  return NextResponse.json({ lines });
+  return NextResponse.json({ lines }, { headers: { "Cache-Control": "no-store" } });
 }

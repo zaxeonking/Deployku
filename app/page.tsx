@@ -81,7 +81,7 @@ export default function Home() {
 
   const fetchBuildLogs = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/logs/${id}`);
+      const res = await fetch(`/api/logs/${id}`, { cache: "no-store" });
       const data = await res.json();
       if (!res.ok || !Array.isArray(data.lines)) return;
       const newLines = data.lines.filter(
@@ -109,7 +109,7 @@ export default function Home() {
       addLog("Cek status manual...", "info");
       try {
         await fetchBuildLogs(id);
-        const res = await fetch(`/api/status/${id}`);
+        const res = await fetch(`/api/status/${id}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) {
           addLog(data?.error || `Gagal cek status (HTTP ${res.status})`, "error");
@@ -149,7 +149,7 @@ export default function Home() {
         await new Promise((r) => setTimeout(r, 3000));
         fetchBuildLogs(id);
         try {
-          const res = await fetch(`/api/status/${id}`);
+          const res = await fetch(`/api/status/${id}`, { cache: "no-store" });
           const data = await res.json();
           if (!res.ok) {
             lastError = data?.error || `Gagal cek status (HTTP ${res.status})`;
