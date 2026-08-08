@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import JSZip from "jszip";
+import { parseRateLimit } from "../../../lib/rate-limit";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -124,10 +125,11 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await vercelRes.json();
+    const rateLimit = parseRateLimit(vercelRes.headers);
 
     if (!vercelRes.ok) {
       return NextResponse.json(
-        { error: data?.error?.message || "Gagal deploy ke Vercel.", detail: data },
+        { error: data?.error?.message || "Gagal deploy ke Vercel.", detail: data, rateLimit },
         { status: vercelRes.status }
       );
     }
@@ -137,6 +139,7 @@ export async function POST(req: NextRequest) {
       url: `https://${data.url}`,
       readyState: data.readyState,
       projectName,
+      rateLimit,
     });
   } catch (err: any) {
     return NextResponse.json(

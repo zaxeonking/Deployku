@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 type Status = "idle" | "uploading" | "building" | "ready" | "error";
 type ReadyState = "QUEUED" | "INITIALIZING" | "BUILDING" | "READY" | "ERROR" | "CANCELED" | "";
+type RateLimitInfo = { limit: number | null; remaining: number | null; reset: number | null } | null;
 
 type LogLine = {
   time: string;
@@ -31,6 +32,17 @@ const PROGRESS_MAP: Record<ReadyState, number> = {
 
 function nowLabel() {
   return new Date().toLocaleTimeString("id-ID", { hour12: false });
+}
+
+function formatResetIn(resetEpochSeconds: number) {
+  const diffMs = resetEpochSeconds * 1000 - Date.now();
+  if (diffMs <= 0) return "sebentar lagi";
+  const diffMin = Math.round(diffMs / 60000);
+  if (diffMin < 1) return "< 1m lagi";
+  if (diffMin < 60) return `${diffMin}m lagi`;
+  const h = Math.floor(diffMin / 60);
+  const m = diffMin % 60;
+  return `${h}j ${m}m lagi`;
 }
 
 function LogoMark({ className }: { className?: string }) {
@@ -67,6 +79,7 @@ export default function Home() {
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [lastDeployId, setLastDeployId] = useState("");
   const [deployedProjectName, setDeployedProjectName] = useState("");
+  const [rateLimit, setRateLimit] = useState<RateLimitInfo>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const seenLogTimestamps = useRef<Set<number>>(new Set());
   const topRef = useRef<HTMLDivElement>(null);
@@ -129,6 +142,7 @@ export default function Home() {
         try {
           const res = await fetch(`/api/status/${id}`, { cache: "no-store" });
           const data = await res.json();
+          if (data?.rateLimit) setRateLimit(data.rateLimit);
           if (!res.ok) {
             lastError = data?.error || `Gagal cek status (HTTP ${res.status})`;
             addLog(lastError, "error");
@@ -201,6 +215,7 @@ export default function Home() {
     try {
       const res = await fetch("/api/deploy", { method: "POST", body: formData });
       const data = await res.json();
+      if (data?.rateLimit) setRateLimit(data.rateLimit);
       if (!res.ok) {
         addLog(data.error || "Gagal deploy.", "error");
         setStatus("error");
@@ -238,6 +253,18 @@ export default function Home() {
       setMessage(err?.message || "Terjadi kesalahan.");
     }
   };
+
+  // Ambil limit deploy Vercel secara live begitu halaman dibuka
+  useEffect(() => {
+    fetch("/api/limits", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.rateLimit) setRateLimit(d.rateLimit);
+      })
+      .catch(() => {
+        // gapapa kalau gagal, badge limit cuma gak muncul
+      });
+  }, []);
 
   // 1. Autoscroll log box ke baris terbaru setiap kali ada log baru
   useEffect(() => {
@@ -290,6 +317,17 @@ export default function Home() {
   const isRunning = status === "uploading" || status === "building";
   const currentStageIndex = STAGES.findIndex((s) => s.key === readyState);
 
+  const rateLimitRatio =
+    rateLimit && rateLimit.limit ? (rateLimit.remaining ?? 0) / rateLimit.limit : null;
+  const rateLimitColor =
+    rateLimitRatio === null
+      ? "text-white"
+      : rateLimitRatio <= 0
+      ? "text-error"
+      : rateLimitRatio <= 0.2
+      ? "text-warning"
+      : "text-white";
+
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
       <div ref={topRef} className="w-full max-w-lg">
@@ -302,6 +340,20 @@ export default function Home() {
             <p className="text-[11px] text-muted mt-0.5">Zip in, URL out — no GitHub needed</p>
           </div>
         </div>
+
+        {rateLimit && rateLimit.limit != null && rateLimit.remaining != null && (
+          <div className="mb-4 rounded-lg border border-border bg-surface-2/60 px-3 py-2 flex items-center justify-between text-[11px]">
+            <span className="text-muted">
+              Deploy quota:{" "}
+              <span className={`font-semibold ${rateLimitColor}`}>
+                {rateLimit.remaining}/{rateLimit.limit}
+              </span>
+            </span>
+            {rateLimit.reset != null && (
+              <span className="text-muted">reset {formatResetIn(rateLimit.reset)}</span>
+            )}
+          </div>
+        )}
 
         <div className="card rounded-2xl p-6 shadow-glow">
           <div className="mb-4">
