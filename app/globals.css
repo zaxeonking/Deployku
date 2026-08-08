@@ -1,120 +1,67 @@
-@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap");
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  background-color: #14171f;
-  background-image:
-    radial-gradient(rgba(237, 230, 214, 0.035) 1px, transparent 1px);
-  background-size: 22px 22px;
-  color: #ede6d6;
-  font-family: "Space Grotesk", sans-serif;
+  background-color: #0a0e16;
+  background-image: radial-gradient(
+    circle at 50% -10%,
+    rgba(59, 130, 246, 0.12),
+    transparent 45%
+  );
+  color: #e5e9f0;
+  font-family: "Inter", sans-serif;
 }
 
-/* Kartu label pengiriman dengan ujung "die-cut" di tiap sudut */
-.label-card {
-  position: relative;
-  background: #f2e8d0;
-  color: #20242c;
+.card {
+  background: #111624;
+  border: 1px solid #232b3d;
 }
 
-.label-card::before,
-.label-card::after,
-.label-card .tick-tl,
-.label-card .tick-br {
-  content: "";
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  border: 2px solid #20242c;
-}
-
-.label-card::before {
-  top: 10px;
-  left: 10px;
-  border-right: none;
-  border-bottom: none;
-}
-
-.label-card::after {
-  bottom: 10px;
-  right: 10px;
-  border-left: none;
-  border-top: none;
-}
-
-.label-card .tick-tl {
-  top: 10px;
-  right: 10px;
-  border-left: none;
-  border-bottom: none;
-}
-
-.label-card .tick-br {
-  bottom: 10px;
-  left: 10px;
-  border-right: none;
-  border-top: none;
-}
-
-/* Garis sobek gaya tiket, dengan lubang notch di kiri-kanan */
-.tear-line {
-  position: relative;
-  border-top: 2px dashed #c9b991;
-}
-
-.tear-line::before,
-.tear-line::after {
-  content: "";
-  position: absolute;
-  top: -9px;
-  width: 18px;
-  height: 18px;
-  background: #14171f;
-  border-radius: 50%;
-}
-
-.tear-line::before {
-  left: -33px;
-}
-
-.tear-line::after {
-  right: -33px;
-}
-
-/* Stempel status bergaya tinta */
-.stamp {
-  display: inline-block;
-  font-family: "Archivo Black", sans-serif;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 0.35rem 0.9rem;
-  border: 3px solid currentColor;
-  border-radius: 4px;
-  transform: rotate(-3deg);
-  position: relative;
-}
-
-.stamp::after {
-  content: "";
-  position: absolute;
-  inset: 3px;
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
   border: 1px solid currentColor;
-  border-radius: 2px;
-  opacity: 0.5;
+  background: currentColor;
 }
 
-.receipt {
-  background: #0e1015;
-  border: 1px solid #2a2f3b;
+.pill-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: currentColor;
 }
 
-.receipt-line {
-  border-bottom: 1px dotted #2a2f3b;
+.terminal {
+  background: #0d1119;
+  border: 1px solid #232b3d;
 }
 
-.receipt-line:last-child {
+.terminal-line {
+  border-bottom: 1px solid rgba(35, 43, 61, 0.6);
+}
+
+.terminal-line:last-child {
   border-bottom: none;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #232b3d;
+  border-radius: 9999px;
 }

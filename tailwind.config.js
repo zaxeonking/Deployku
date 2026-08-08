@@ -4,23 +4,26 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        ink: "#14171F",
-        "ink-soft": "#1B1F29",
-        paper: "#F2E8D0",
-        "paper-line": "#C9B991",
-        "ink-text": "#20242C",
-        stamp: {
-          red: "#B33B2E",
-          green: "#3F6B4A",
-          amber: "#B9812B",
+        base: "#0A0E16",
+        surface: "#111624",
+        "surface-2": "#171D2E",
+        border: "#232B3D",
+        blue: {
+          500: "#3B82F6",
+          400: "#5B9DFF",
+          600: "#2563EB",
         },
-        cream: "#EDE6D6",
-        muted: "#8A93A6",
+        muted: "#8B93A7",
+        success: "#22C55E",
+        error: "#EF4444",
+        warning: "#F59E0B",
       },
       fontFamily: {
-        display: ["'Archivo Black'", "sans-serif"],
-        body: ["'Space Grotesk'", "sans-serif"],
+        sans: ["'Inter'", "sans-serif"],
         mono: ["'JetBrains Mono'", "monospace"],
+      },
+      boxShadow: {
+        glow: "0 0 0 1px rgba(59,130,246,0.15), 0 8px 40px -8px rgba(59,130,246,0.25)",
       },
     },
   },

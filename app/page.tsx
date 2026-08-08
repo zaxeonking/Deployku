@@ -12,11 +12,11 @@ type LogLine = {
 };
 
 const STAGES: { key: ReadyState; label: string }[] = [
-  { key: "", label: "Diterima" },
-  { key: "QUEUED", label: "Antre" },
-  { key: "INITIALIZING", label: "Disiapkan" },
-  { key: "BUILDING", label: "Diproses" },
-  { key: "READY", label: "Terkirim" },
+  { key: "", label: "Upload" },
+  { key: "QUEUED", label: "Queued" },
+  { key: "INITIALIZING", label: "Init" },
+  { key: "BUILDING", label: "Build" },
+  { key: "READY", label: "Live" },
 ];
 
 const PROGRESS_MAP: Record<ReadyState, number> = {
@@ -33,17 +33,22 @@ function nowLabel() {
   return new Date().toLocaleTimeString("id-ID", { hour12: false });
 }
 
-function BoxIcon({ className }: { className?: string }) {
+function LogoMark({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" className={className}>
-      <path
-        d="M3 7.5 12 3l9 4.5-9 4.5-9-4.5Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <path d="M3 7.5v9L12 21l9-4.5v-9" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
-      <path d="M12 12v9" stroke="currentColor" strokeWidth="1.5" />
+      <rect x="3" y="3" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="13" y="3" width="8" height="8" rx="1.5" fill="currentColor" />
+      <rect x="3" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+      <rect x="13" y="13" width="8" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.6" />
+    </svg>
+  );
+}
+
+function UploadIcon({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className={className}>
+      <path d="M12 16V4M12 4 7 9M12 4l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -106,7 +111,7 @@ export default function Home() {
   const checkNow = useCallback(
     async (id: string) => {
       setCheckingNow(true);
-      addLog("Cek status manual...", "info");
+      addLog("Manual check status...", "info");
       try {
         await fetchBuildLogs(id);
         const res = await fetch(`/api/status/${id}`, { cache: "no-store" });
@@ -126,7 +131,7 @@ export default function Home() {
         } else if (data.readyState === "ERROR" || data.readyState === "CANCELED") {
           addLog("Build gagal di Vercel.", "error");
           setStatus("error");
-          setMessage("Build gagal di Vercel. Cek log di atas untuk detail.");
+          setMessage("Build gagal di Vercel. Cek log untuk detail.");
         } else {
           addLog(`Masih ${data.readyState}, belum selesai.`, "info");
           setMessage(`Masih dalam proses: ${data.readyState}. Coba cek lagi sebentar.`);
@@ -143,8 +148,6 @@ export default function Home() {
     async (id: string) => {
       let lastError = "";
       let lastReadyState = "";
-      // Build Next.js (install dependency + compile) bisa makan waktu beberapa menit,
-      // jadi kita kasih waktu tunggu jauh lebih panjang: 200x cek @3 detik = ~10 menit.
       for (let i = 0; i < 200; i++) {
         await new Promise((r) => setTimeout(r, 3000));
         fetchBuildLogs(id);
@@ -160,7 +163,7 @@ export default function Home() {
           if (data.readyState && data.readyState !== lastReadyState) {
             lastReadyState = data.readyState;
             setReadyState(data.readyState as ReadyState);
-            addLog(`Status berubah: ${data.readyState}`, "info");
+            addLog(`Status: ${data.readyState}`, "info");
           }
 
           if (data.readyState === "READY") {
@@ -185,7 +188,7 @@ export default function Home() {
       }
       const timeoutMsg = lastError
         ? `Berhenti memantau otomatis setelah 10 menit. Error terakhir: ${lastError}`
-        : "Berhenti memantau otomatis setelah 10 menit. Build mungkin masih jalan di Vercel — klik \"Cek Status Sekarang\" di bawah.";
+        : 'Berhenti memantau otomatis setelah 10 menit. Klik "Cek Status Sekarang" di bawah.';
       setStatus("error");
       setMessage(timeoutMsg);
     },
@@ -204,7 +207,7 @@ export default function Home() {
     setLogs([]);
     seenLogTimestamps.current = new Set();
 
-    addLog(`Mengunggah ${file.name} (${(file.size / 1024).toFixed(0)} KB)...`);
+    addLog(`Uploading ${file.name} (${(file.size / 1024).toFixed(0)} KB)...`);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -220,7 +223,7 @@ export default function Home() {
         return;
       }
 
-      addLog(`Paket dibuat: ${data.projectName} (id: ${data.id})`);
+      addLog(`Deployment dibuat: ${data.projectName} (${data.id})`);
       setLastDeployId(data.id);
 
       if (data.readyState === "READY") {
@@ -263,33 +266,26 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-xl">
-        <div className="flex items-center gap-2 mb-8 text-cream">
-          <BoxIcon className="w-6 h-6" />
-          <span className="font-mono text-xs tracking-[0.3em] uppercase text-muted">
-            Paket Kode Menuju Situs Hidup
-          </span>
+      <div className="w-full max-w-lg">
+        <div className="flex items-center gap-2.5 mb-6">
+          <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <LogoMark className="w-4 h-4" />
+          </div>
+          <div>
+            <h1 className="font-semibold text-white leading-none">DeployKu</h1>
+            <p className="text-[11px] text-muted mt-0.5">Zip in, URL out — no GitHub needed</p>
+          </div>
         </div>
 
-        <div className="label-card rounded-sm px-8 pt-10 pb-8 shadow-[8px_8px_0_0_rgba(0,0,0,0.35)]">
-          <div className="tick-tl" />
-          <div className="tick-br" />
-
-          <h1 className="font-display text-3xl sm:text-4xl leading-none mb-1">DEPLOYKU</h1>
-          <p className="font-mono text-xs text-ink-text/60 mb-8">
-            NO GITHUB • NO GIT PUSH • ZIP IN, URL OUT
-          </p>
-
-          <div className="mb-5">
-            <label className="block font-mono text-[11px] tracking-widest uppercase text-ink-text/60 mb-1">
-              Nama Project
-            </label>
+        <div className="card rounded-2xl p-6 shadow-glow">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-muted mb-1.5">Project name</label>
             <input
               value={projectName}
               onChange={(e) => setProjectName(e.target.value)}
-              placeholder="portofolio-saya"
+              placeholder="my-portfolio"
               disabled={isRunning}
-              className="w-full bg-transparent border-b-2 border-paper-line px-1 py-2 outline-none focus:border-ink-text placeholder:text-ink-text/30 disabled:opacity-50 font-body"
+              className="w-full rounded-lg bg-surface-2 border border-border px-3.5 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/40 placeholder:text-muted/60 disabled:opacity-50 transition-colors"
             />
           </div>
 
@@ -301,11 +297,13 @@ export default function Home() {
             onDragLeave={() => setDragOver(false)}
             onDrop={(e) => !isRunning && onDrop(e)}
             onClick={() => !isRunning && inputRef.current?.click()}
-            className={`rounded-sm border-2 border-dashed px-6 py-10 text-center transition flex flex-col items-center gap-2 ${
+            className={`rounded-xl border border-dashed px-6 py-9 text-center transition flex flex-col items-center gap-2.5 ${
               isRunning ? "cursor-not-allowed opacity-50" : "cursor-pointer"
-            } ${dragOver ? "border-ink-text bg-black/5" : "border-paper-line"}`}
+            } ${dragOver ? "border-blue-500 bg-blue-500/5" : "border-border hover:border-blue-500/40"}`}
           >
-            <BoxIcon className="w-8 h-8 text-ink-text/50" />
+            <div className="w-9 h-9 rounded-full bg-surface-2 flex items-center justify-center text-blue-400">
+              <UploadIcon className="w-4 h-4" />
+            </div>
             <input
               ref={inputRef}
               type="file"
@@ -315,10 +313,10 @@ export default function Home() {
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
             {file ? (
-              <p className="font-mono text-sm">{file.name}</p>
+              <p className="text-sm font-medium text-white">{file.name}</p>
             ) : (
-              <p className="text-ink-text/50 text-sm">
-                Jatuhkan paket .zip di sini, atau klik untuk pilih
+              <p className="text-sm text-muted">
+                Drop .zip file here, or <span className="text-blue-400">click to browse</span>
               </p>
             )}
           </div>
@@ -326,93 +324,91 @@ export default function Home() {
           <button
             onClick={handleDeploy}
             disabled={isRunning}
-            className="mt-6 w-full bg-ink-text text-paper font-display text-sm tracking-wider py-3.5 rounded-sm disabled:opacity-40 hover:-translate-y-0.5 active:translate-y-0 transition-transform"
+            className="mt-5 w-full bg-blue-500 hover:bg-blue-400 text-white font-medium text-sm py-3 rounded-lg disabled:opacity-40 disabled:hover:bg-blue-500 transition-colors"
           >
-            {status === "uploading"
-              ? "MENGUNGGAH..."
-              : status === "building"
-              ? "SEDANG DIPROSES..."
-              : "KIRIM SEKARANG"}
+            {status === "uploading" ? "Uploading..." : status === "building" ? "Building..." : "Deploy Now"}
           </button>
 
           {status !== "idle" && (
-            <div className="tear-line mt-8 pt-6">
-              <div className="relative h-1.5 bg-paper-line/50 rounded-full mb-3 overflow-hidden">
-                <div
-                  className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
-                    status === "error" ? "bg-stamp-red" : status === "ready" ? "bg-stamp-green" : "bg-stamp-amber"
-                  }`}
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <div className="flex justify-between font-mono text-[10px] uppercase tracking-wide">
+            <div className="mt-6">
+              <div className="flex justify-between text-[11px] font-medium text-muted mb-2">
                 {STAGES.map((s, i) => (
                   <span
                     key={s.label}
-                    className={
-                      i <= currentStageIndex || status === "ready"
-                        ? "text-ink-text font-semibold"
-                        : "text-ink-text/35"
-                    }
+                    className={i <= currentStageIndex || status === "ready" ? "text-blue-400" : ""}
                   >
                     {s.label}
                   </span>
                 ))}
+              </div>
+              <div className="relative h-1.5 bg-surface-2 rounded-full overflow-hidden">
+                <div
+                  className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ${
+                    status === "error" ? "bg-error" : status === "ready" ? "bg-success" : "bg-blue-500"
+                  }`}
+                  style={{ width: `${progress}%` }}
+                />
               </div>
 
               {lastDeployId && status !== "ready" && (
                 <button
                   onClick={() => checkNow(lastDeployId)}
                   disabled={checkingNow}
-                  className="mt-4 w-full text-xs font-mono border border-ink-text/30 rounded-sm py-2 hover:bg-ink-text hover:text-paper transition-colors disabled:opacity-50"
+                  className="mt-4 w-full text-xs font-medium text-blue-400 border border-border rounded-lg py-2 hover:bg-surface-2 hover:border-blue-500/40 transition-colors disabled:opacity-50"
                 >
-                  {checkingNow ? "Mengecek..." : "Cek Status Sekarang"}
+                  {checkingNow ? "Checking..." : "Cek Status Sekarang"}
                 </button>
               )}
             </div>
           )}
 
           {status === "ready" && deployUrl && (
-            <div className="mt-6">
-              <span className="stamp text-stamp-green">Terkirim</span>
-              <div className="mt-3 flex items-center gap-2 font-mono text-sm bg-black/5 rounded-sm px-3 py-2">
+            <div className="mt-5 rounded-xl bg-success/10 border border-success/25 px-4 py-3">
+              <span className="pill text-success">
+                <span className="pill-dot" />
+                Live
+              </span>
+              <div className="mt-2.5 flex items-center gap-2 font-mono text-sm">
                 <a
                   href={deployUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="underline break-all flex-1"
+                  className="text-white underline decoration-success/40 hover:decoration-success break-all flex-1"
                 >
                   {deployUrl}
                 </a>
                 <button
                   onClick={() => copyToClipboard(deployUrl, setCopiedUrl)}
-                  className="shrink-0 text-xs border border-ink-text/30 rounded-sm px-2 py-1 hover:bg-ink-text hover:text-paper transition-colors"
+                  className="shrink-0 text-[11px] font-medium border border-border rounded-md px-2.5 py-1 hover:bg-surface-2 transition-colors"
                 >
-                  {copiedUrl ? "Disalin!" : "Salin"}
+                  {copiedUrl ? "Copied!" : "Copy"}
                 </button>
               </div>
             </div>
           )}
 
           {status === "error" && message && (
-            <div className="mt-6">
-              <span className="stamp text-stamp-red">Gagal</span>
-              <div className="mt-3 flex items-start gap-2 font-mono text-xs bg-black/5 rounded-sm px-3 py-2">
-                <p className="flex-1 break-words">{message}</p>
+            <div className="mt-5 rounded-xl bg-error/10 border border-error/25 px-4 py-3">
+              <span className="pill text-error">
+                <span className="pill-dot" />
+                Error
+              </span>
+              <div className="mt-2.5 flex items-start gap-2">
+                <p className="flex-1 text-xs text-white/90 break-words font-mono">{message}</p>
                 <button
                   onClick={() => copyToClipboard(message, setCopiedError)}
-                  className="shrink-0 text-xs border border-ink-text/30 rounded-sm px-2 py-1 hover:bg-ink-text hover:text-paper transition-colors"
+                  className="shrink-0 text-[11px] font-medium border border-border rounded-md px-2.5 py-1 hover:bg-surface-2 transition-colors"
                 >
-                  {copiedError ? "Disalin!" : "Salin Error"}
+                  {copiedError ? "Copied!" : "Copy Error"}
                 </button>
               </div>
               {lastDeployId && (
                 <button
                   onClick={() => checkNow(lastDeployId)}
                   disabled={checkingNow}
-                  className="mt-3 w-full text-xs font-mono border border-ink-text/30 rounded-sm py-2 hover:bg-ink-text hover:text-paper transition-colors disabled:opacity-50"
+                  className="mt-3 w-full text-xs font-medium text-blue-400 border border-border rounded-lg py-2 hover:bg-surface-2 hover:border-blue-500/40 transition-colors disabled:opacity-50"
                 >
-                  {checkingNow ? "Mengecek..." : "Cek Status Sekarang"}
+                  {checkingNow ? "Checking..." : "Cek Status Sekarang"}
                 </button>
               )}
             </div>
@@ -420,38 +416,33 @@ export default function Home() {
         </div>
 
         {logs.length > 0 && (
-          <div className="mt-6">
+          <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="font-mono text-[11px] tracking-widest uppercase text-muted">
-                Manifest Pengiriman
-              </p>
+              <p className="text-[11px] font-medium text-muted">Build logs</p>
               <button
                 onClick={() =>
-                  copyToClipboard(
-                    logs.map((l) => `[${l.time}] ${l.text}`).join("\n"),
-                    setCopiedLogs
-                  )
+                  copyToClipboard(logs.map((l) => `[${l.time}] ${l.text}`).join("\n"), setCopiedLogs)
                 }
-                className="text-[11px] font-mono border border-cream/20 text-cream/80 rounded-sm px-2 py-1 hover:bg-cream/10 transition-colors"
+                className="text-[11px] font-medium text-muted border border-border rounded-md px-2.5 py-1 hover:bg-surface-2 hover:text-white transition-colors"
               >
-                {copiedLogs ? "Disalin!" : "Salin Semua"}
+                {copiedLogs ? "Copied!" : "Copy all"}
               </button>
             </div>
-            <div className="receipt rounded-sm px-4 py-3 max-h-64 overflow-y-auto font-mono text-xs">
+            <div className="terminal rounded-xl px-4 py-2 max-h-64 overflow-y-auto scrollbar-thin font-mono text-xs">
               {logs.map((l, i) => (
                 <div
                   key={i}
-                  className={`receipt-line py-1.5 ${
+                  className={`terminal-line py-1.5 ${
                     l.kind === "error"
-                      ? "text-stamp-red"
+                      ? "text-error"
                       : l.kind === "success"
-                      ? "text-stamp-green"
+                      ? "text-success"
                       : l.kind === "build"
                       ? "text-muted"
-                      : "text-cream/80"
+                      : "text-white/80"
                   }`}
                 >
-                  <span className="text-cream/30">[{l.time}]</span> {l.text}
+                  <span className="text-white/25">[{l.time}]</span> {l.text}
                 </div>
               ))}
             </div>
