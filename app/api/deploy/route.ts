@@ -101,6 +101,8 @@ export async function POST(req: NextRequest) {
     const teamId = process.env.VERCEL_TEAM_ID;
     const url = new URL("https://api.vercel.com/v13/deployments");
     if (teamId) url.searchParams.set("teamId", teamId);
+    // Biar Vercel auto-detect framework tanpa minta konfirmasi manual
+    url.searchParams.set("skipAutoDetectionConfirmation", "1");
 
     const vercelRes = await fetch(url.toString(), {
       method: "POST",
@@ -113,6 +115,11 @@ export async function POST(req: NextRequest) {
         project: projectName,
         target: "production",
         files,
+        // Wajib ada saat project belum pernah dibuat sebelumnya.
+        // framework: null -> biarkan Vercel auto-detect dari isi zip (Next.js, static, dll)
+        projectSettings: {
+          framework: null,
+        },
       }),
     });
 
