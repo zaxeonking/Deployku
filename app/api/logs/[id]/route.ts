@@ -37,15 +37,10 @@ export async function GET(
   const lines: { text: string; ts: number }[] = [];
   for (const ev of Array.isArray(events) ? events : []) {
     if (ev.type === "stdout" || ev.type === "stderr" || ev.type === "command") {
-      let text = "";
-      try {
-        text = ev.payload?.text
-          ? Buffer.from(ev.payload.text, "base64").toString("utf-8")
-          : ev.payload?.text || "";
-      } catch {
-        text = ev.payload?.text || "";
-      }
-      text = text.trim();
+      // Vercel events API sudah mengirim payload.text dalam bentuk plain UTF-8,
+      // BUKAN base64. Men-decode-nya sebagai base64 (kode sebelumnya) merusak
+      // teks jadi karakter acak. Jadi di sini kita pakai apa adanya.
+      const text = (ev.payload?.text || "").trim();
       if (text) lines.push({ text, ts: ev.created || Date.now() });
     }
   }

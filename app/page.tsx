@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type Status = "idle" | "uploading" | "building" | "ready" | "error";
 type ReadyState = "QUEUED" | "INITIALIZING" | "BUILDING" | "READY" | "ERROR" | "CANCELED" | "";
@@ -66,9 +66,12 @@ export default function Home() {
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [lastDeployId, setLastDeployId] = useState("");
-  const [checkingNow, setCheckingNow] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const seenLogTimestamps = useRef<Set<number>>(new Set());
+  const topRef = useRef<HTMLDivElement>(null);
+  const logsSectionRef = useRef<HTMLDivElement>(null);
+  const logsScrollRef = useRef<HTMLDivElement>(null);
+  const clearLogsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addLog = useCallback((text: string, kind: LogLine["kind"] = "info") => {
     setLogs((prev) => [...prev, { time: nowLabel(), text, kind }]);
@@ -107,42 +110,6 @@ export default function Home() {
       // log build opsional
     }
   }, []);
-
-  const checkNow = useCallback(
-    async (id: string) => {
-      setCheckingNow(true);
-      addLog("Manual check status...", "info");
-      try {
-        await fetchBuildLogs(id);
-        const res = await fetch(`/api/status/${id}`, { cache: "no-store" });
-        const data = await res.json();
-        if (!res.ok) {
-          addLog(data?.error || `Gagal cek status (HTTP ${res.status})`, "error");
-          setMessage(data?.error || `Gagal cek status (HTTP ${res.status})`);
-          setCheckingNow(false);
-          return;
-        }
-        setReadyState(data.readyState as ReadyState);
-        if (data.readyState === "READY") {
-          addLog("Deployment READY, website sudah live.", "success");
-          setStatus("ready");
-          setDeployUrl(data.url);
-          setMessage("");
-        } else if (data.readyState === "ERROR" || data.readyState === "CANCELED") {
-          addLog("Build gagal di Vercel.", "error");
-          setStatus("error");
-          setMessage("Build gagal di Vercel. Cek log untuk detail.");
-        } else {
-          addLog(`Masih ${data.readyState}, belum selesai.`, "info");
-          setMessage(`Masih dalam proses: ${data.readyState}. Coba cek lagi sebentar.`);
-        }
-      } catch (err: any) {
-        addLog(err?.message || "Gagal menghubungi server.", "error");
-      }
-      setCheckingNow(false);
-    },
-    [addLog, fetchBuildLogs]
-  );
 
   const pollStatus = useCallback(
     async (id: string) => {
@@ -188,7 +155,7 @@ export default function Home() {
       }
       const timeoutMsg = lastError
         ? `Berhenti memantau otomatis setelah 10 menit. Error terakhir: ${lastError}`
-        : 'Berhenti memantau otomatis setelah 10 menit. Klik "Cek Status Sekarang" di bawah.';
+        : "Berhenti memantau otomatis setelah 10 menit. Coba deploy ulang untuk memantau lagi.";
       setStatus("error");
       setMessage(timeoutMsg);
     },
@@ -252,6 +219,45 @@ export default function Home() {
     }
   };
 
+  // 1. Autoscroll log box ke baris terbaru setiap kali ada log baru
+  useEffect(() => {
+    const el = logsScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
+  // 2. Begitu tombol deploy dipencet & build mulai jalan, langsung turun ke area log
+  useEffect(() => {
+    if (status === "uploading" || status === "building") {
+      logsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [status]);
+
+  // 5. Begitu build selesai (ready/error), scroll balik ke atas biar hasil/status kelihatan
+  useEffect(() => {
+    if (status === "ready" || status === "error") {
+      topRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [status]);
+
+  // 7. Kalau live tanpa error, bersihkan log otomatis setelah 5 detik.
+  // Kalau ada error, log dibiarkan supaya bisa dicek/di-copy.
+  useEffect(() => {
+    if (clearLogsTimeoutRef.current) {
+      clearTimeout(clearLogsTimeoutRef.current);
+      clearLogsTimeoutRef.current = null;
+    }
+    const hasErrorLog = logs.some((l) => l.kind === "error");
+    if (status === "ready" && !hasErrorLog) {
+      clearLogsTimeoutRef.current = setTimeout(() => {
+        setLogs([]);
+      }, 5000);
+    }
+    return () => {
+      if (clearLogsTimeoutRef.current) clearTimeout(clearLogsTimeoutRef.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status]);
+
   const onDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -266,7 +272,7 @@ export default function Home() {
 
   return (
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
-      <div className="w-full max-w-lg">
+      <div ref={topRef} className="w-full max-w-lg">
         <div className="flex items-center gap-2.5 mb-6">
           <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
             <LogoMark className="w-4 h-4" />
@@ -349,16 +355,6 @@ export default function Home() {
                   style={{ width: `${progress}%` }}
                 />
               </div>
-
-              {lastDeployId && status !== "ready" && (
-                <button
-                  onClick={() => checkNow(lastDeployId)}
-                  disabled={checkingNow}
-                  className="mt-4 w-full text-xs font-medium text-blue-400 border border-border rounded-lg py-2 hover:bg-surface-2 hover:border-blue-500/40 transition-colors disabled:opacity-50"
-                >
-                  {checkingNow ? "Checking..." : "Cek Status Sekarang"}
-                </button>
-              )}
             </div>
           )}
 
@@ -368,20 +364,20 @@ export default function Home() {
                 <span className="pill-dot" />
                 Live
               </span>
-              <div className="mt-2.5 flex items-center gap-2 font-mono text-sm">
+              <div className="mt-3 grid grid-cols-2 gap-2">
                 <a
                   href={deployUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-white underline decoration-success/40 hover:decoration-success break-all flex-1"
+                  className="text-center text-xs font-medium text-white bg-success/20 border border-success/30 rounded-lg py-2 hover:bg-success/30 transition-colors"
                 >
-                  {deployUrl}
+                  Buka Website
                 </a>
                 <button
                   onClick={() => copyToClipboard(deployUrl, setCopiedUrl)}
-                  className="shrink-0 text-[11px] font-medium border border-border rounded-md px-2.5 py-1 hover:bg-surface-2 transition-colors"
+                  className="text-xs font-medium border border-border rounded-lg py-2 hover:bg-surface-2 transition-colors"
                 >
-                  {copiedUrl ? "Copied!" : "Copy"}
+                  {copiedUrl ? "Copied!" : "Copy Link"}
                 </button>
               </div>
             </div>
@@ -402,21 +398,12 @@ export default function Home() {
                   {copiedError ? "Copied!" : "Copy Error"}
                 </button>
               </div>
-              {lastDeployId && (
-                <button
-                  onClick={() => checkNow(lastDeployId)}
-                  disabled={checkingNow}
-                  className="mt-3 w-full text-xs font-medium text-blue-400 border border-border rounded-lg py-2 hover:bg-surface-2 hover:border-blue-500/40 transition-colors disabled:opacity-50"
-                >
-                  {checkingNow ? "Checking..." : "Cek Status Sekarang"}
-                </button>
-              )}
             </div>
           )}
         </div>
 
         {logs.length > 0 && (
-          <div className="mt-4">
+          <div ref={logsSectionRef} className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] font-medium text-muted">Build logs</p>
               <button
@@ -428,7 +415,10 @@ export default function Home() {
                 {copiedLogs ? "Copied!" : "Copy all"}
               </button>
             </div>
-            <div className="terminal rounded-xl px-4 py-2 max-h-64 overflow-y-auto scrollbar-thin font-mono text-xs">
+            <div
+              ref={logsScrollRef}
+              className="terminal rounded-xl px-4 py-2 max-h-64 overflow-y-auto scrollbar-thin font-mono text-xs"
+            >
               {logs.map((l, i) => (
                 <div
                   key={i}
