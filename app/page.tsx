@@ -60,6 +60,8 @@ export default function Home() {
   const [copiedError, setCopiedError] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [lastDeployId, setLastDeployId] = useState("");
+  const [checkingNow, setCheckingNow] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const seenLogTimestamps = useRef<Set<number>>(new Set());
 
@@ -101,12 +103,50 @@ export default function Home() {
     }
   }, []);
 
+  const checkNow = useCallback(
+    async (id: string) => {
+      setCheckingNow(true);
+      addLog("Cek status manual...", "info");
+      try {
+        await fetchBuildLogs(id);
+        const res = await fetch(`/api/status/${id}`);
+        const data = await res.json();
+        if (!res.ok) {
+          addLog(data?.error || `Gagal cek status (HTTP ${res.status})`, "error");
+          setMessage(data?.error || `Gagal cek status (HTTP ${res.status})`);
+          setCheckingNow(false);
+          return;
+        }
+        setReadyState(data.readyState as ReadyState);
+        if (data.readyState === "READY") {
+          addLog("Deployment READY, website sudah live.", "success");
+          setStatus("ready");
+          setDeployUrl(data.url);
+          setMessage("");
+        } else if (data.readyState === "ERROR" || data.readyState === "CANCELED") {
+          addLog("Build gagal di Vercel.", "error");
+          setStatus("error");
+          setMessage("Build gagal di Vercel. Cek log di atas untuk detail.");
+        } else {
+          addLog(`Masih ${data.readyState}, belum selesai.`, "info");
+          setMessage(`Masih dalam proses: ${data.readyState}. Coba cek lagi sebentar.`);
+        }
+      } catch (err: any) {
+        addLog(err?.message || "Gagal menghubungi server.", "error");
+      }
+      setCheckingNow(false);
+    },
+    [addLog, fetchBuildLogs]
+  );
+
   const pollStatus = useCallback(
     async (id: string) => {
       let lastError = "";
       let lastReadyState = "";
-      for (let i = 0; i < 60; i++) {
-        await new Promise((r) => setTimeout(r, 2000));
+      // Build Next.js (install dependency + compile) bisa makan waktu beberapa menit,
+      // jadi kita kasih waktu tunggu jauh lebih panjang: 200x cek @3 detik = ~10 menit.
+      for (let i = 0; i < 200; i++) {
+        await new Promise((r) => setTimeout(r, 3000));
         fetchBuildLogs(id);
         try {
           const res = await fetch(`/api/status/${id}`);
@@ -144,8 +184,8 @@ export default function Home() {
         }
       }
       const timeoutMsg = lastError
-        ? `Timeout menunggu build. Error terakhir: ${lastError}`
-        : "Timeout menunggu build selesai. Coba cek dashboard Vercel kamu.";
+        ? `Berhenti memantau otomatis setelah 10 menit. Error terakhir: ${lastError}`
+        : "Berhenti memantau otomatis setelah 10 menit. Build mungkin masih jalan di Vercel — klik \"Cek Status Sekarang\" di bawah.";
       setStatus("error");
       setMessage(timeoutMsg);
     },
@@ -181,6 +221,7 @@ export default function Home() {
       }
 
       addLog(`Paket dibuat: ${data.projectName} (id: ${data.id})`);
+      setLastDeployId(data.id);
 
       if (data.readyState === "READY") {
         setReadyState("READY");
@@ -318,6 +359,16 @@ export default function Home() {
                   </span>
                 ))}
               </div>
+
+              {lastDeployId && status !== "ready" && (
+                <button
+                  onClick={() => checkNow(lastDeployId)}
+                  disabled={checkingNow}
+                  className="mt-4 w-full text-xs font-mono border border-ink-text/30 rounded-sm py-2 hover:bg-ink-text hover:text-paper transition-colors disabled:opacity-50"
+                >
+                  {checkingNow ? "Mengecek..." : "Cek Status Sekarang"}
+                </button>
+              )}
             </div>
           )}
 
@@ -355,6 +406,15 @@ export default function Home() {
                   {copiedError ? "Disalin!" : "Salin Error"}
                 </button>
               </div>
+              {lastDeployId && (
+                <button
+                  onClick={() => checkNow(lastDeployId)}
+                  disabled={checkingNow}
+                  className="mt-3 w-full text-xs font-mono border border-ink-text/30 rounded-sm py-2 hover:bg-ink-text hover:text-paper transition-colors disabled:opacity-50"
+                >
+                  {checkingNow ? "Mengecek..." : "Cek Status Sekarang"}
+                </button>
+              )}
             </div>
           )}
         </div>
