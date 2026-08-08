@@ -14,28 +14,41 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const pollStatus = useCallback(async (id: string) => {
-    for (let i = 0; i < 30; i++) {
-      await new Promise((r) => setTimeout(r, 3000));
+    let lastError = "";
+    for (let i = 0; i < 40; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
       try {
         const res = await fetch(`/api/status/${id}`);
         const data = await res.json();
-        if (!res.ok) continue;
+        if (!res.ok) {
+          lastError = data?.error || `Gagal cek status (HTTP ${res.status})`;
+          continue;
+        }
         if (data.readyState === "READY") {
           setStatus("ready");
           setDeployUrl(data.url);
           return;
         }
-        if (data.readyState === "ERROR") {
+        if (data.readyState === "ERROR" || data.readyState === "CANCELED") {
           setStatus("error");
-          setMessage("Build gagal di Vercel. Cek struktur project kamu.");
+          setMessage(
+            data.readyState === "CANCELED"
+              ? "Deployment dibatalkan."
+              : "Build gagal di Vercel. Cek struktur project kamu."
+          );
           return;
         }
-      } catch {
-        // lanjut polling
+        // masih QUEUED / BUILDING / INITIALIZING -> lanjut polling
+      } catch (err: any) {
+        lastError = err?.message || "Gagal menghubungi server saat cek status.";
       }
     }
     setStatus("error");
-    setMessage("Timeout menunggu build selesai. Coba cek dashboard Vercel kamu.");
+    setMessage(
+      lastError
+        ? `Timeout menunggu build. Error terakhir: ${lastError}`
+        : "Timeout menunggu build selesai. Coba cek dashboard Vercel kamu."
+    );
   }, []);
 
   const handleDeploy = async () => {
@@ -59,6 +72,19 @@ export default function Home() {
         setMessage(data.error || "Gagal deploy.");
         return;
       }
+
+      // Kadang deployment (terutama static site) langsung READY tanpa perlu polling
+      if (data.readyState === "READY") {
+        setStatus("ready");
+        setDeployUrl(data.url);
+        return;
+      }
+      if (data.readyState === "ERROR" || data.readyState === "CANCELED") {
+        setStatus("error");
+        setMessage("Build langsung gagal. Cek struktur project kamu.");
+        return;
+      }
+
       setStatus("building");
       setMessage("Build sedang berjalan di Vercel...");
       pollStatus(data.id);

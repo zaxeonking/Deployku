@@ -21,7 +21,10 @@ export async function GET(
   const data = await res.json();
 
   if (!res.ok) {
-    return NextResponse.json({ error: data?.error?.message || "Gagal cek status." }, { status: res.status });
+    return NextResponse.json(
+      { error: data?.error?.message || `Gagal cek status (HTTP ${res.status})`, detail: data },
+      { status: res.status }
+    );
   }
 
   return NextResponse.json({
