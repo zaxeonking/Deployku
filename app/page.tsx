@@ -66,6 +66,7 @@ export default function Home() {
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [lastDeployId, setLastDeployId] = useState("");
+  const [deployedProjectName, setDeployedProjectName] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const seenLogTimestamps = useRef<Set<number>>(new Set());
   const topRef = useRef<HTMLDivElement>(null);
@@ -111,8 +112,15 @@ export default function Home() {
     }
   }, []);
 
+  const cleanupProject = useCallback((name: string) => {
+    if (!name) return;
+    fetch(`/api/project/${encodeURIComponent(name)}`, { method: "DELETE" }).catch(() => {
+      // best-effort, gapapa kalau gagal
+    });
+  }, []);
+
   const pollStatus = useCallback(
-    async (id: string) => {
+    async (id: string, projectName: string) => {
       let lastError = "";
       let lastReadyState = "";
       for (let i = 0; i < 200; i++) {
@@ -146,6 +154,7 @@ export default function Home() {
             addLog(errText, "error");
             setStatus("error");
             setMessage(errText);
+            cleanupProject(projectName);
             return;
           }
         } catch (err: any) {
@@ -159,7 +168,7 @@ export default function Home() {
       setStatus("error");
       setMessage(timeoutMsg);
     },
-    [addLog, fetchBuildLogs]
+    [addLog, fetchBuildLogs, cleanupProject]
   );
 
   const handleDeploy = async () => {
@@ -172,13 +181,22 @@ export default function Home() {
     setDeployUrl("");
     setReadyState("");
     setLogs([]);
+    setDeployedProjectName("");
     seenLogTimestamps.current = new Set();
 
-    addLog(`Uploading ${file.name} (${(file.size / 1024).toFixed(0)} KB)...`);
+    const uploadingFile = file;
+    const uploadingProjectName = projectName;
+
+    addLog(`Uploading ${uploadingFile.name} (${(uploadingFile.size / 1024).toFixed(0)} KB)...`);
 
     const formData = new FormData();
-    formData.append("file", file);
-    formData.append("projectName", projectName);
+    formData.append("file", uploadingFile);
+    formData.append("projectName", uploadingProjectName);
+
+    // Langsung bersihkan input file & nama project biar siap dipakai lagi
+    setFile(null);
+    setProjectName("");
+    if (inputRef.current) inputRef.current.value = "";
 
     try {
       const res = await fetch("/api/deploy", { method: "POST", body: formData });
@@ -192,6 +210,7 @@ export default function Home() {
 
       addLog(`Deployment dibuat: ${data.projectName} (${data.id})`);
       setLastDeployId(data.id);
+      setDeployedProjectName(data.projectName);
 
       if (data.readyState === "READY") {
         setReadyState("READY");
@@ -204,6 +223,7 @@ export default function Home() {
         addLog("Build langsung gagal.", "error");
         setStatus("error");
         setMessage("Build langsung gagal. Cek struktur project kamu.");
+        cleanupProject(data.projectName);
         return;
       }
 
@@ -211,7 +231,7 @@ export default function Home() {
       setStatus("building");
       setMessage("Build sedang berjalan di Vercel...");
       addLog("Menunggu build di Vercel...");
-      pollStatus(data.id);
+      pollStatus(data.id, data.projectName);
     } catch (err: any) {
       addLog(err?.message || "Terjadi kesalahan.", "error");
       setStatus("error");
@@ -364,6 +384,11 @@ export default function Home() {
                 <span className="pill-dot" />
                 Live
               </span>
+              {deployedProjectName && (
+                <span className="ml-2 align-middle text-xs font-mono text-white/60">
+                  {deployedProjectName}
+                </span>
+              )}
               <div className="mt-3 grid grid-cols-2 gap-2">
                 <a
                   href={deployUrl}

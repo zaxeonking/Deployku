@@ -30,7 +30,7 @@ body {
   padding: 0.3rem 0.75rem;
   border-radius: 9999px;
   border: 1px solid currentColor;
-  background: currentColor;
+  background: transparent;
 }
 
 .pill-dot {
