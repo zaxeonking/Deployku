@@ -1,8 +1,120 @@
+@import url("https://fonts.googleapis.com/css2?family=Archivo+Black&family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
-  background: #0a0a0a;
-  color: #f5f5f5;
+  background-color: #14171f;
+  background-image:
+    radial-gradient(rgba(237, 230, 214, 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+  color: #ede6d6;
+  font-family: "Space Grotesk", sans-serif;
+}
+
+/* Kartu label pengiriman dengan ujung "die-cut" di tiap sudut */
+.label-card {
+  position: relative;
+  background: #f2e8d0;
+  color: #20242c;
+}
+
+.label-card::before,
+.label-card::after,
+.label-card .tick-tl,
+.label-card .tick-br {
+  content: "";
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #20242c;
+}
+
+.label-card::before {
+  top: 10px;
+  left: 10px;
+  border-right: none;
+  border-bottom: none;
+}
+
+.label-card::after {
+  bottom: 10px;
+  right: 10px;
+  border-left: none;
+  border-top: none;
+}
+
+.label-card .tick-tl {
+  top: 10px;
+  right: 10px;
+  border-left: none;
+  border-bottom: none;
+}
+
+.label-card .tick-br {
+  bottom: 10px;
+  left: 10px;
+  border-right: none;
+  border-top: none;
+}
+
+/* Garis sobek gaya tiket, dengan lubang notch di kiri-kanan */
+.tear-line {
+  position: relative;
+  border-top: 2px dashed #c9b991;
+}
+
+.tear-line::before,
+.tear-line::after {
+  content: "";
+  position: absolute;
+  top: -9px;
+  width: 18px;
+  height: 18px;
+  background: #14171f;
+  border-radius: 50%;
+}
+
+.tear-line::before {
+  left: -33px;
+}
+
+.tear-line::after {
+  right: -33px;
+}
+
+/* Stempel status bergaya tinta */
+.stamp {
+  display: inline-block;
+  font-family: "Archivo Black", sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.35rem 0.9rem;
+  border: 3px solid currentColor;
+  border-radius: 4px;
+  transform: rotate(-3deg);
+  position: relative;
+}
+
+.stamp::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.5;
+}
+
+.receipt {
+  background: #0e1015;
+  border: 1px solid #2a2f3b;
+}
+
+.receipt-line {
+  border-bottom: 1px dotted #2a2f3b;
+}
+
+.receipt-line:last-child {
+  border-bottom: none;
 }

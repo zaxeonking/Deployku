@@ -2,8 +2,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "DeployKu — Upload Zip, Auto Deploy",
-  description: "Deploy website ke Vercel langsung dari file zip, tanpa akun GitHub.",
+  title: "DeployKu — Paket Kode Menuju Situs Hidup",
+  description: "Kirim file .zip, dapat URL live di Vercel. Tanpa akun GitHub, tanpa git push.",
 };
 
 export default function RootLayout({
