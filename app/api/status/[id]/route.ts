@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { parseRateLimit } from "../../../../lib/rate-limit";
 
 export const runtime = "nodejs";
 // Route handler GET di-cache oleh Next.js secara default -> paksa selalu fresh
@@ -25,11 +24,10 @@ export async function GET(
     cache: "no-store",
   });
   const data = await res.json();
-  const rateLimit = parseRateLimit(res.headers);
 
   if (!res.ok) {
     return NextResponse.json(
-      { error: data?.error?.message || `Gagal cek status (HTTP ${res.status})`, detail: data, rateLimit },
+      { error: data?.error?.message || `Gagal cek status (HTTP ${res.status})`, detail: data },
       { status: res.status, headers: { "Cache-Control": "no-store" } }
     );
   }
@@ -38,7 +36,6 @@ export async function GET(
     {
       readyState: data.readyState,
       url: `https://${data.url}`,
-      rateLimit,
     },
     { headers: { "Cache-Control": "no-store" } }
   );
